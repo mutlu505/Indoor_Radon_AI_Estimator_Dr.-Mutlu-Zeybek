@@ -790,3 +790,74 @@ def main():
 if __name__ == "__main__":
     main()
     
+#1. DATASET EXPAND-Current status: 14 buildings → New status: 957 buildings (117 buildings + 840 minarets)
+# Revised dataset summary
+revised_dataset = {
+    "total_buildings": 957,
+    "building_types": ["Residential", "Mosque Minarets"],
+    "provinces": ["İzmir", "Muğla"],
+    "measurement_period": "2013-2020",
+    "measurement_devices": ["SSNTD", "RadonEye", "Markus 10"],
+    "irc_range": "28-2809 Bq/m³"
+}
+
+#2. STRENGTHENING PHYSICAL SCIENCE-New Physical Models:
+# Radon potential model according to geological units
+geological_units_radon_potential = {
+    "volcanic_rocks": {"mean_irc": 450, "risk": "HIGH"},
+    "alluvium_volcanic": {"mean_irc": 350, "risk": "MEDIUM_HIGH"},
+    "alluvium_sedimentary": {"mean_irc": 100, "risk": "LOW"},
+    "limestone": {"mean_irc": 200, "risk": "MEDIUM"},
+    "serpentinite": {"mean_irc": 300, "risk": "MEDIUM_HIGH"}
+}
+
+# Fault distance model
+fault_distance_model = {
+    "0-100m": {"risk_multiplier": 2.5, "evidence": "IRC increases near faults"},
+    "100-500m": {"risk_multiplier": 1.8, "evidence": "Moderate increase"},
+    "500-1000m": {"risk_multiplier": 1.2, "evidence": "Slight increase"},
+    ">1000m": {"risk_multiplier": 1.0, "evidence": "Baseline risk"}
+}
+
+#3. RE-DESIGNING THE PINN MODEL-Improved Physics Information Loss Function:
+import tensorflow as tf
+
+def enhanced_physics_loss(Qt_pred, geological_unit, fault_distance, building_material):
+    """
+    Improved physics knowledge restriction
+    """
+    # 1. Geological unit restriction
+    geo_constraint = tf.abs(Qt_pred - geological_baseline[geological_unit])
+    
+    # 2. Fault distance restriction
+    fault_constraint = tf.abs(Qt_pred * fault_multiplier[fault_distance] - Qt_pred)
+    
+    # 3. Building material restrictions
+    material_constraint = material_baseline[building_material]
+    
+    total_physics_loss = (geo_constraint + fault_constraint + material_constraint)
+    return total_physics_loss
+
+# Combined loss function
+def total_loss(y_true, y_pred, geological, fault, material):
+    data_loss = tf.keras.losses.mse(y_true, y_pred)
+    physics_loss = enhanced_physics_loss(y_pred, geological, fault, material)
+    return data_loss + 0.5 * physics_loss
+
+    #4. EXTERNAL VERIFICATION STRATEGY
+    # Cross-validation strategy
+validation_strategy = {
+    "spatial_validation": {
+        "train": "İzmir verileri",
+        "test": "Muğla verileri"
+    },
+    "temporal_validation": {
+        "train": "2013-2019 verileri", 
+        "test": "2020 verileri"
+    },
+    "building_type_validation": {
+        "train": "Konut binaları",
+        "test": "Cami minareleri"
+    }
+}
+
